@@ -8,7 +8,7 @@
 
 public enum CSVParseError: Error {
     case generic(message: String)
-    case quotation(message: String)
+    case quotation(message: String, rowNumber: Int)
 }
 
 /// State machine of parsing CSV contents character by character.
@@ -24,6 +24,8 @@ struct ParsingState {
     let appendChar: (Character) -> Void
     let finishField: () -> Void
 
+    var rowNumber: Int = 0
+    
     init(delimiter: Character,
          finishRow: @escaping () -> Void,
          appendChar: @escaping (Character) -> Void,
@@ -45,6 +47,7 @@ struct ParsingState {
                 finishField()
             } else if char.isNewline {
                 finishRow()
+                rowNumber += 1
             } else if char.isWhitespace {
               // ignore whitespaces between fields
             } else {
@@ -58,7 +61,7 @@ struct ParsingState {
                     appendChar(char)
                     innerQuotes = false
                 } else {
-                    throw CSVParseError.quotation(message: "Can't have non-quote here: \(char)")
+                    throw CSVParseError.quotation(message: "Can't have non-quote here: \(char)", rowNumber: rowNumber)
                 }
             } else {
                 if char == "\"" {
@@ -73,6 +76,7 @@ struct ParsingState {
                     parsingField = false
                     innerQuotes = false
                     finishRow()
+                    rowNumber += 1
                 } else {
                     appendChar(char)
                 }
@@ -92,10 +96,11 @@ struct ParsingState {
                     parsingQuotes = false
                     innerQuotes = false
                     finishRow()
+                    rowNumber += 1
                 } else if char.isWhitespace {
                   // ignore whitespaces between fields
                 } else {
-                    throw CSVParseError.quotation(message: "Can't have non-quote here: \(char)")
+                    throw CSVParseError.quotation(message: "Can't have non-quote here: \(char)", rowNumber: rowNumber)
                 }
             } else {
                 if char == "\"" {
